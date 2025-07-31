@@ -2,18 +2,12 @@
 import { useState, useRef } from 'react';
 import AsciiPlayer from './components/AsciiPlayer';
 import FileDropZone from './components/FileDropZone';
-import YouTubeDownloader from './components/YouTubeDownloader';
 
 export default function Home() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = (file: File) => {
-    setError(null);
-    setVideoFile(file);
-  };
-
-  const handleVideoDownload = (file: File) => {
     setError(null);
     setVideoFile(file);
   };
@@ -41,14 +35,9 @@ export default function Home() {
       )}
 
         {!videoFile && (
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="max-w-2xl mx-auto">
             <FileDropZone 
               onFileSelect={handleFileSelect}
-              onError={handleError}
-            />
-            
-            <YouTubeDownloader 
-              onVideoDownload={handleVideoDownload}
               onError={handleError}
             />
           </div>

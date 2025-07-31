@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { processVideoToAscii, processVideoInChunks } from '../utils/videoProcessor';
 import { useFFmpeg } from '../hooks/useFFmpeg';
-import StreamShare from './StreamShare';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 
 
@@ -18,7 +17,6 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
     const [frameRate, setFrameRate] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(3);
-    const [showStreamShare, setShowStreamShare] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const asciiWidth = 200;
     const asciiHeight = Math.round(asciiWidth * (3 / 4));
@@ -58,7 +56,6 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                 );
                 console.log('Video processing complete, got', frames.length, 'frames');
                 setAsciiFrames(frames);
-                setShowStreamShare(true);
             } catch (error: any) {
                 console.error('Error processing video:', error);
                 setError('Failed to process video: ' + error.message);
@@ -189,13 +186,6 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                 </div>
             )}
             
-            {showStreamShare && asciiFrames.length > 0 && frameRate && (
-                <StreamShare 
-                    frames={asciiFrames}
-                    frameRate={frameRate}
-                    title={videoFile.name}
-                />
-            )}
         </div>
     );
 };
