@@ -1,111 +1,67 @@
 'use client'
 import { useState, useRef } from 'react';
 import AsciiPlayer from './components/AsciiPlayer';
+import FileDropZone from './components/FileDropZone';
+import YouTubeDownloader from './components/YouTubeDownloader';
 
 export default function Home() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [youtubeUrl, setYoutubeUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (file: File) => {
     setError(null);
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type.startsWith('video/')) {
-        if (file.size <= 100 * 1024 * 1024) { // 100MB limit
-          setVideoFile(file);
-        } else {
-          setError('File size exceeds 100MB limit.');
-        }
-      } else {
-        setError('Please select a valid video file.');
-      }
-    }
+    setVideoFile(file);
   };
 
-  const handleYoutubeDownload = async () => {
+  const handleVideoDownload = (file: File) => {
     setError(null);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('https://api.cobalt.tools/api/json', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: youtubeUrl,
-          vCodec: 'h264',
-          vQuality: '720',
-          aFormat: 'mp3',
-          filenamePattern: 'classic',
-          isAudioOnly: false,
-        }),
-      });
-      console.log('Response:', response);
-      if (!response.ok) {
-        throw new Error('Failed to download video');
-      }
-
-      const data = await response.json();
-
-      // Download the file
-      console.log(data)
-      const videoResponse = await fetch(data.url);
-      const videoBlob = await videoResponse.blob();
-      const videoFile = new File([videoBlob], 'youtube_video.mp4', { type: 'video/mp4' });
-      console.log('Downloaded video:', videoFile);
-      setVideoFile(videoFile);
-    } catch (err) {
-      setError('An error occurred while downloading the video');
-      console.error(err);
-    }
-
-    setIsLoading(false);
+    setVideoFile(file);
   };
+
+  const handleError = (errorMessage: string) => {
+    setError(errorMessage);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-4">
-      <h1 className="text-3xl font-bold mb-4">Video to ASCII Converter</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            ASCII<span className="text-blue-600">Tube</span>
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
+            Convert videos to ASCII art and share them in terminals
+          </p>
+        </div>
+
       {videoFile && (
-        <div className="w-full flex justify-center mt-4">
+        <div className="mb-8">
           <AsciiPlayer key={videoFile.name} videoFile={videoFile} />
         </div>
       )}
-      <div className="w-full">
-        <div className="flex flex-row justify-center text-center gap-4">
 
-          <form className="mb-4">
-            <input
-              type="file"
-              accept="video/*"
-              onChange={handleFileChange}
-              ref={fileInputRef}
-              className="w-full p-2 border rounded mb-2"
+        {!videoFile && (
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <FileDropZone 
+              onFileSelect={handleFileSelect}
+              onError={handleError}
             />
-          </form>
-          <div className="mb-4">
-            <input
-              type="text"
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="Enter YouTube URL"
-              className="w-full p-2 border rounded mb-2 text-black"
+            
+            <YouTubeDownloader 
+              onVideoDownload={handleVideoDownload}
+              onError={handleError}
             />
-            <button
-              onClick={handleYoutubeDownload}
-              disabled={isLoading}
-              className="w-full mt-2 bg-red-500 text-white p-2 rounded"
-            >
-              {isLoading ? 'Downloading...' : 'Download YouTube Video'}
-            </button>
           </div>
-          {error && <div className="text-red-500 mb-4">{error}</div>}
-        </div>
-      </div>
+        )}
 
+        {error && (
+          <div className="max-w-2xl mx-auto mt-6">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 text-center">{error}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

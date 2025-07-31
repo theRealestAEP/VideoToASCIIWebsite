@@ -150,3 +150,92 @@ async function imageDataToAscii(imageData: Uint8Array, width: number): Promise<s
   URL.revokeObjectURL(imageUrl);
   return asciiImage;
 }
+
+// Improved processing for longer videos with chunking
+export async function processVideoInChunks(
+  ffmpeg: FFmpeg,
+  videoFile: File, 
+  asciiWidth: number, 
+  frameRate: number, 
+  onProgress: (progress: number) => void,
+  maxFrames: number = 1000 // Limit frames for performance
+): Promise<string[]> {
+  console.log('Starting chunked video processing...');
+  
+  if (!ffmpeg.loaded) {
+    throw new Error('FFmpeg is not loaded. Please ensure it\'s initialized before processing.');
+  }
+
+  const inputFileName = 'input' + videoFile.name.substring(videoFile.name.lastIndexOf('.'));
+  console.log('Writing video file:', inputFileName);
+  
+  try {
+    await ffmpeg.writeFile(inputFileName, await fetchFile(videoFile));
+    console.log('Video file written successfully');
+  } catch (error: any) {
+    console.error('Error writing file:', error);
+    throw new Error('Failed to write video file: ' + error.message);
+  }
+
+  // Limit frame rate for performance
+  const effectiveFrameRate = Math.min(frameRate, 15);
+  
+  // Get video duration and calculate total frames
+  await ffmpeg.exec(['-i', inputFileName, '-f', 'null', '-']);
+  
+  const outputFileName = 'output_%d.png';
+  console.log('Executing FFmpeg command with chunking...');
+  
+  try {
+    // Process with frame limiting
+    await ffmpeg.exec([
+      '-i', inputFileName, 
+      '-vf', `fps=${effectiveFrameRate},scale=${asciiWidth}:-1`,
+      '-frames:v', maxFrames.toString(),
+      outputFileName
+    ]);
+    console.log('FFmpeg command executed successfully');
+  } catch (error: any) {
+    console.error('Error executing FFmpeg command:', error);
+    throw new Error('Failed to process video: ' + error.message);
+  }
+  
+  const asciiFrames: string[] = [];
+  let frameIndex = 1;
+  const batchSize = 10; // Process frames in batches
+
+  console.log('Converting frames to ASCII in batches...');
+  
+  while (frameIndex <= maxFrames) {
+    const batchPromises: Promise<string>[] = [];
+    
+    // Process batch of frames
+    for (let i = 0; i < batchSize && frameIndex <= maxFrames; i++, frameIndex++) {
+      const frameName = `output_${frameIndex}.png`;
+      
+      try {
+        const frameData = await ffmpeg.readFile(frameName);
+        if (!frameData) break;
+        
+        batchPromises.push(imageDataToAscii(frameData as Uint8Array, asciiWidth));
+      } catch (error) {
+        console.log(`No more frames at index ${frameIndex}`);
+        break;
+      }
+    }
+    
+    if (batchPromises.length === 0) break;
+    
+    // Wait for batch to complete
+    const batchResults = await Promise.all(batchPromises);
+    asciiFrames.push(...batchResults);
+    
+    onProgress(asciiFrames.length);
+    
+    // Small delay to prevent blocking
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+
+  console.log(`ASCII conversion complete: ${asciiFrames.length} frames`);
+  return asciiFrames;
+}

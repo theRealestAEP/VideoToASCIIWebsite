@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { processVideoToAscii } from '../utils/videoProcessor';
+import { processVideoToAscii, processVideoInChunks } from '../utils/videoProcessor';
 import { useFFmpeg } from '../hooks/useFFmpeg';
+import StreamShare from './StreamShare';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 
 
 interface AsciiPlayerProps {
@@ -16,6 +18,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
     const [frameRate, setFrameRate] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(3);
+    const [showStreamShare, setShowStreamShare] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const asciiWidth = 200;
     const asciiHeight = Math.round(asciiWidth * (3 / 4));
@@ -43,7 +46,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                 console.log('Detected frame rate:', detectedFrameRate);
 
                 // Process video to ASCII
-                const frames = await processVideoToAscii(
+                const frames = await processVideoInChunks(
                     ffmpeg,
                     videoFile,
                     asciiWidth,
@@ -55,6 +58,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                 );
                 console.log('Video processing complete, got', frames.length, 'frames');
                 setAsciiFrames(frames);
+                setShowStreamShare(true);
             } catch (error: any) {
                 console.error('Error processing video:', error);
                 setError('Failed to process video: ' + error.message);
@@ -125,6 +129,10 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
         return () => cancelAnimationFrame(animationId);
     }, [isPlaying, asciiFrames]);
 
+    const resetVideo = () => {
+        setCurrentFrame(0);
+        setIsPlaying(false);
+    };
 
     const togglePlayPause = () => {
         setIsPlaying(!isPlaying);
@@ -146,12 +154,10 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
         return <div>Loading... {isLoading ? `Processing video... Frame ${progress}` : 'Initializing FFmpeg'}</div>;
     }
 
-
-
     return (
-        <div>
+        <div className="space-y-6">
+            <div className="flex justify-center">
             <canvas
-
                 ref={canvasRef}
                 style={{
                     width: `${asciiWidth * zoom}px`,
@@ -159,10 +165,38 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                     maxWidth: '100%',
                     maxHeight: '100%',
                 }}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg"
             />
-
+            </div>
+            
+            {asciiFrames.length > 0 && (
+                <div className="flex justify-center space-x-4">
+                    <button
+                        onClick={togglePlayPause}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                        {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        <span>{isPlaying ? 'Pause' : 'Play'}</span>
+                    </button>
+                    
+                    <button
+                        onClick={resetVideo}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                    >
+                        <RotateCcw className="w-5 h-5" />
+                        <span>Reset</span>
+                    </button>
+                </div>
+            )}
+            
+            {showStreamShare && asciiFrames.length > 0 && frameRate && (
+                <StreamShare 
+                    frames={asciiFrames}
+                    frameRate={frameRate}
+                    title={videoFile.name}
+                />
+            )}
         </div>
-
     );
 };
 
