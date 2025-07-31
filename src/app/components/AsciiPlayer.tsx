@@ -98,7 +98,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
 
             }
         }
-    }, [currentFrame, asciiFrames]);
+    }, [currentFrame, asciiFrames, asciiHeight]);
 
     // useEffect(() => { //fix playback
     //     if (isPlaying && asciiFrames.length > 0 && frameRate) {
