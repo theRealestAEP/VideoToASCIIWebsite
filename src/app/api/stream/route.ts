@@ -12,11 +12,11 @@ const videoStreams = new Map<string, {
 // Clean up old streams (older than 1 hour)
 setInterval(() => {
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [id, stream] of videoStreams.entries()) {
+  videoStreams.forEach((stream, id) => {
     if (stream.createdAt < oneHourAgo) {
       videoStreams.delete(id);
     }
-  }
+  });
 }, 5 * 60 * 1000); // Check every 5 minutes
 
 export async function POST(request: NextRequest) {
