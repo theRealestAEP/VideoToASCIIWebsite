@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { processVideoToAscii, processVideoInChunks } from '../utils/videoProcessor';
 import { useFFmpeg } from '../hooks/useFFmpeg';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings } from 'lucide-react';
 
 
 interface AsciiPlayerProps {
@@ -17,6 +17,8 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
     const [frameRate, setFrameRate] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(3);
+    const [detailLevel, setDetailLevel] = useState<'low' | 'medium' | 'high' | 'ultra'>('medium');
+    const [showSettings, setShowSettings] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const asciiWidth = 200;
     const asciiHeight = Math.round(asciiWidth * (3 / 4));
@@ -49,6 +51,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
                     videoFile,
                     asciiWidth,
                     detectedFrameRate,
+                    detailLevel,
                     (progress) => {
                         console.log('Processing progress:', progress);
                         setProgress(progress);
@@ -67,7 +70,7 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
         };
 
         processVideo();
-    }, [ffmpegLoaded, ffmpeg, videoFile]);
+    }, [ffmpegLoaded, ffmpeg, videoFile, detailLevel]);
 
     useEffect(() => {
         if (canvasRef.current && asciiFrames.length > 0) {
@@ -139,6 +142,20 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
         setZoom(Number(event.target.value));
     };
 
+    const handleDetailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const levels: ('low' | 'medium' | 'high' | 'ultra')[] = ['low', 'medium', 'high', 'ultra'];
+        setDetailLevel(levels[Number(event.target.value)]);
+    };
+
+    const getDetailDescription = (level: 'low' | 'medium' | 'high' | 'ultra') => {
+        switch (level) {
+            case 'low': return 'Simple (10 chars) - Fast processing';
+            case 'medium': return 'Balanced (17 chars) - Good quality';
+            case 'high': return 'Detailed (69 chars) - High quality';
+            case 'ultra': return 'Ultra (100+ chars) - Maximum detail';
+        }
+    };
+
     if (ffmpegError) {
         return <div className="text-red-500">Error: {ffmpegError}</div>;
     }
@@ -153,6 +170,44 @@ const AsciiPlayer: React.FC<AsciiPlayerProps> = ({ videoFile }) => {
 
     return (
         <div className="space-y-6">
+            {/* Settings Panel */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg">
+                <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                    <Settings className="w-5 h-5" />
+                    <span>ASCII Settings</span>
+                </button>
+                
+                {showSettings && (
+                    <div className="mt-4 space-y-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Detail Level: {detailLevel.charAt(0).toUpperCase() + detailLevel.slice(1)}
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="3"
+                                value={['low', 'medium', 'high', 'ultra'].indexOf(detailLevel)}
+                                onChange={handleDetailChange}
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                            />
+                            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                <span>Low</span>
+                                <span>Medium</span>
+                                <span>High</span>
+                                <span>Ultra</span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                                {getDetailDescription(detailLevel)}
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="flex justify-center">
             <canvas
                 ref={canvasRef}

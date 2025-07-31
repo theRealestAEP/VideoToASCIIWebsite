@@ -3,13 +3,18 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 let ffmpeg: FFmpeg | null = null;
 
-const detailedAsciiMap = [
-  '-', '@', 'B', '%', '8', '&', 'W', 'M', '#', '*', 'C', 'J', 'U', 'Y', 'X', 'z', 'c', 'v', 'u', 'n', 'x', 'r', 'j', 'f', 't', '/', '\\', '|', '(', ')', '1', '{', '}', '[', ']', '?', '-', '_', '+', '~', '<', '>', 'i', '!', 'l', 'I', ';', ':', ',', '"', '^', '`', "'", '.', ' '
-];
+// Different ASCII character sets for various detail levels
+const asciiMaps = {
+  low: [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'],
+  medium: [' ', '.', ':', ';', '!', '>', '<', '+', '=', '?', '7', '9', '$', '&', '%', 'B', '@'],
+  high: [' ', '.', '`', '^', '"', ',', ':', ';', 'I', 'l', '!', 'i', '>', '<', '~', '+', '_', '-', '?', ']', '}', '|', ')', '(', '1', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@'],
+  ultra: [' ', '.', '`', '^', '"', ',', ':', ';', 'I', 'l', '!', 'i', '>', '<', '~', '+', '_', '-', '?', ']', '}', '|', ')', '(', '1', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@', '█', '▉', '▊', '▋', '▌', '▍', '▎', '▏', '▓', '▒', '░', '■', '□', '▪', '▫', '●', '○', '◆', '◇', '◼', '◻', '▲', '△', '▼', '▽', '◀', '▶', '♠', '♣', '♥', '♦']
+};
 
-function getAsciiChar(brightness: number) {
-  const mapIndex = Math.floor((brightness / 255) * (detailedAsciiMap.length - 1));
-  return detailedAsciiMap[mapIndex];
+function getAsciiChar(brightness: number, detailLevel: 'low' | 'medium' | 'high' | 'ultra' = 'medium') {
+  const asciiMap = asciiMaps[detailLevel];
+  const mapIndex = Math.floor((brightness / 255) * (asciiMap.length - 1));
+  return asciiMap[mapIndex];
 }
 
 // export async function getVideoFrameRate(ffmpeg: FFmpeg, videoFile: File): Promise<number> {
@@ -53,6 +58,7 @@ export async function processVideoToAscii(
   videoFile: File, 
   asciiWidth: number, 
   frameRate: number, 
+  detailLevel: 'low' | 'medium' | 'high' | 'ultra',
   onProgress: (progress: number) => void
 ): Promise<string[]> {
   console.log('Starting video processing with FFmpeg...');
@@ -104,7 +110,7 @@ export async function processVideoToAscii(
     }
 
     console.log(`Converting frame ${frameIndex} to ASCII...`);
-    const asciiFrame = await imageDataToAscii(frameData as Uint8Array, asciiWidth);
+    const asciiFrame = await imageDataToAscii(frameData as Uint8Array, asciiWidth, detailLevel);
     asciiFrames.push(asciiFrame);
 
     onProgress(frameIndex);
@@ -115,7 +121,7 @@ export async function processVideoToAscii(
   return asciiFrames;
 }
 
-async function imageDataToAscii(imageData: Uint8Array, width: number): Promise<string> {
+async function imageDataToAscii(imageData: Uint8Array, width: number, detailLevel: 'low' | 'medium' | 'high' | 'ultra' = 'medium'): Promise<string> {
   const image = new Image();
   const blob = new Blob([imageData], { type: 'image/png' });
   const imageUrl = URL.createObjectURL(blob);
@@ -142,7 +148,7 @@ async function imageDataToAscii(imageData: Uint8Array, width: number): Promise<s
       const g = pixelData.data[pixelIndex + 1];
       const b = pixelData.data[pixelIndex + 2];
       const brightness = (r + g + b) / 3;
-      asciiImage += getAsciiChar(brightness);
+      asciiImage += getAsciiChar(brightness, detailLevel);
     }
     asciiImage += '\n';
   }
@@ -157,6 +163,7 @@ export async function processVideoInChunks(
   videoFile: File, 
   asciiWidth: number, 
   frameRate: number, 
+  detailLevel: 'low' | 'medium' | 'high' | 'ultra',
   onProgress: (progress: number) => void,
   maxFrames: number = 1000 // Limit frames for performance
 ): Promise<string[]> {
@@ -217,7 +224,7 @@ export async function processVideoInChunks(
         const frameData = await ffmpeg.readFile(frameName);
         if (!frameData) break;
         
-        batchPromises.push(imageDataToAscii(frameData as Uint8Array, asciiWidth));
+        batchPromises.push(imageDataToAscii(frameData as Uint8Array, asciiWidth, detailLevel));
       } catch (error) {
         console.log(`No more frames at index ${frameIndex}`);
         break;
